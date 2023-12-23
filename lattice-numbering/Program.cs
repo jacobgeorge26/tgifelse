@@ -20,9 +20,13 @@ namespace LatticeNumbering
             stopwatch.Start();
 
             CreateNodes();
+            
+            // Verify nodes are set up as expected
+            if(!_nodes[_n - 1].IsCornerNode())
+                throw new InvalidDataException("The node array has not been generated as expected");
 
             var firstNode = _nodes[0];
-            if (!firstNode.IsCornerNode())
+            if (!firstNode.IsFirstNode())
                 throw new InvalidDataException("The node array has not been generated as expected");
             
             var totalCount = VisitNode(firstNode);
