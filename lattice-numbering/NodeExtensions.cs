@@ -7,6 +7,16 @@ public static class NodeExtensions
     public static bool IsCornerNode(this Node node) => node.ConnectedNodes.Count == 2;
     
     public static bool IsMiddleNode(this Node node) => node.ConnectedNodes.Count == 4;
+
+    public static bool AllNodesVisited(this Node[] nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (!node.IsVisited)
+                return false;
+        }
+        return true;
+    }
     
     public static void ConnectToPreviousNodes(this Node node, Node[] nodes, int n)
     {

@@ -56,10 +56,12 @@ namespace LatticeNumbering
 
             var count = 0;
             
-            if (thisNode.IsMiddleNode() && _nodes.All(x => x.IsVisited))
+            // Determine whether this node was the end of the route
+            if (_nodes.AllNodesVisited())
             {
-                // End of the route
-                count += 1;
+                // If this node ends a valid route then update the count
+                if (thisNode.IsMiddleNode())
+                    count++;
             }
             else
             {
