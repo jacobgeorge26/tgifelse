@@ -1,4 +1,6 @@
-﻿namespace LatticeNumbering
+﻿using System.Diagnostics;
+
+namespace LatticeNumbering
 {
     public static class Program
     {
@@ -14,6 +16,9 @@
 
             Console.WriteLine($"Finding number of valid routes for an {_n} by {_n} grid");
 
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
             CreateNodes();
 
             var firstNode = _nodes[0];
@@ -22,7 +27,11 @@
             
             var totalCount = VisitNode(firstNode);
             
-            Console.WriteLine($"{totalCount * 4} routes possible");
+            stopwatch.Stop();
+            
+            Console.WriteLine($"{totalCount * 8} routes possible");
+
+            Console.WriteLine($"Completed in {Math.Round(stopwatch.Elapsed.TotalSeconds, 2)} seconds");
         }
 
         private static void CreateNodes()
