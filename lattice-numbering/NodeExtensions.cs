@@ -8,10 +8,12 @@ public static class NodeExtensions
     
     public static bool IsMiddleNode(this Node node) => node.ConnectedNodes.Count == 4;
 
-    public static bool AllNodesVisited(this Node[] nodes)
+    // TODO change this to remaining nodes array
+    public static bool IsRouteComplete(this Node[] nodes)
     {
         foreach (var node in nodes)
         {
+            // If all nodes have been visited then the route is complete
             if (!node.IsVisited)
                 return false;
         }
@@ -30,7 +32,8 @@ public static class NodeExtensions
         // Do not connect if this node is on the left edge (multiple of n)
         if (node.Id - 1 >= 0 && node.Id % n != 0)
         {
-            // Do not connect the second node to the first - assume results can be rotated from any routes via the nth node
+            // Do not connect the second node to the first
+            // Assume any routes taken by starting downwards from the first node can be mirrored onto a route starting by moving right
             if (node.Id != 1)
             {
                 node.BuildConnection(nodes[node.Id - 1]);

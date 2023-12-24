@@ -6,6 +6,7 @@ namespace LatticeNumbering
     {
         private static int _n;
         private static Node[] _nodes = null!;
+        
         private static void Main(string[] args)
         {
             if (!int.TryParse(args[0], out _n))
@@ -40,13 +41,15 @@ namespace LatticeNumbering
 
         private static void CreateNodes()
         {
-            _nodes = new Node[_n * _n];
-
-            for (var i = 0; i < _n * _n; i++)
+            var length = _n * _n;
+            _nodes = new Node[length];
+            
+            for (var i = 0; i < length; i++)
             {
-                _nodes[i] = new Node(i);
-                
-                _nodes[i].ConnectToPreviousNodes(_nodes, _n);
+                var newNode = new Node(i);
+                _nodes[i] = newNode;
+
+                newNode.ConnectToPreviousNodes(_nodes, _n);
             }
         }
 
@@ -56,8 +59,8 @@ namespace LatticeNumbering
 
             var count = 0;
             
-            // Determine whether this node was the end of the route
-            if (_nodes.AllNodesVisited())
+            // Determine whether this node completes a route
+            if (_nodes.IsRouteComplete())
             {
                 // If this node ends a valid route then update the count
                 if (thisNode.IsMiddleNode())
