@@ -8,7 +8,6 @@ public static class NodeExtensions
     
     public static bool IsMiddleNode(this Node node) => node.ConnectedNodes.Count == 4;
 
-    // TODO change this to remaining nodes array
     public static bool IsRouteComplete(this Node[] nodes)
     {
         foreach (var node in nodes)
