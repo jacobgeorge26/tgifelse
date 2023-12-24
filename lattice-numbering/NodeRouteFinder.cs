@@ -22,7 +22,7 @@ public class NodeRouteFinder : IRouteFinder
         if (!firstNode.IsFirstNode())
             throw new InvalidDataException("The node array has not been generated as expected");
             
-        return VisitNode(firstNode);
+        return VisitNode(firstNode) * 8;
     }
 
 

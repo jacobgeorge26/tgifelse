@@ -35,7 +35,7 @@ namespace LatticeNumbering
             
             stopwatch.Stop();
             
-            Console.WriteLine($"{routeCount * 8} routes possible");
+            Console.WriteLine($"{routeCount} routes possible");
 
             Console.WriteLine($"Completed in {Math.Round(stopwatch.Elapsed.TotalSeconds, 2)} seconds");
         }
