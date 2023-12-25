@@ -8,4 +8,8 @@
         <RootNamespace>LatticeNumbering</RootNamespace>
     </PropertyGroup>
 
+    <ItemGroup>
+      <Folder Include="images" />
+    </ItemGroup>
+
 </Project>
