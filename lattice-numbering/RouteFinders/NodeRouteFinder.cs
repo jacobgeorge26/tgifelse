@@ -1,4 +1,7 @@
-namespace LatticeNumbering;
+using LatticeNumbering.Extensions;
+using LatticeNumbering.Models;
+
+namespace LatticeNumbering.RouteFinders;
 
 public class NodeRouteFinder : IRouteFinder
 {

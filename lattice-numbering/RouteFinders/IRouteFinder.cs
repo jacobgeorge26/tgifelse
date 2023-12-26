@@ -1,4 +1,4 @@
-namespace LatticeNumbering;
+namespace LatticeNumbering.RouteFinders;
 
 public interface IRouteFinder
 {

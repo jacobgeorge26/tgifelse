@@ -1,4 +1,6 @@
-namespace LatticeNumbering;
+using LatticeNumbering.Models;
+
+namespace LatticeNumbering.Extensions;
 
 public static class NodeExtensions
 {

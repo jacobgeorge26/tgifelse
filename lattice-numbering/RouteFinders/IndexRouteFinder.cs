@@ -1,4 +1,6 @@
-namespace LatticeNumbering;
+using LatticeNumbering.Extensions;
+
+namespace LatticeNumbering.RouteFinders;
 
 public class IndexRouteFinder : IRouteFinder
 {

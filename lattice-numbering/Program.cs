@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics;
+using LatticeNumbering.Models;
+using LatticeNumbering.RouteFinders;
 
 namespace LatticeNumbering
 {

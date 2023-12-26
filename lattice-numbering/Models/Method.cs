@@ -1,4 +1,4 @@
-namespace LatticeNumbering;
+namespace LatticeNumbering.Models;
 
 public enum Method
 {
