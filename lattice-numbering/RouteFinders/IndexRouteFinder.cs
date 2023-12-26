@@ -59,16 +59,8 @@ public class IndexRouteFinder : IRouteFinder
             // Investigate each node connected to this one that has not already been visited by this route
             foreach (var nextNode in GetNextSquares(thisIndex))
             {
-                if(VerifyRouteAhead(nextNode, _d))
+                if(_remainingCount < _d || VerifyRouteAhead(nextNode, _d))
                     count += MoveToSquare(nextNode);
-            }
-        }
-        else if (_remainingCount > 0)
-        {
-            // Investigate each node connected to this one that has not already been visited by this route
-            foreach (var nextNode in GetNextSquares(thisIndex))
-            {
-                count += MoveToSquare(nextNode);
             }
         }
         else
