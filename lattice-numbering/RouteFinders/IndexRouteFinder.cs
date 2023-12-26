@@ -7,13 +7,12 @@ public class IndexRouteFinder : IRouteFinder
     private readonly int _n;
     
     private bool[] _squares = null!;
-    private int[] _verificationSquareIndices = null!;
     
     private int _remainingCount;
     private int _middleCount;
 
-    private int _skippedMiddleCount = 0;
-    private int _skippedSampleCount = 0;
+    private int _middleRemainingOptimisationCount;
+    private int _breakingMoveOptimisationCount;
     
     public IndexRouteFinder(int n)
     {
@@ -22,21 +21,18 @@ public class IndexRouteFinder : IRouteFinder
     
     public int Run()
     {
-        // Total number of squares, and of those middle squares, are available across the entire grid
+        // Total number of squares, and of those the number of middle squares, that are available across the entire grid
         _remainingCount = _n * _n;
         _middleCount = (_n - 2) * (_n - 2);
         
         _squares = new bool[_remainingCount];
         Array.Fill(_squares, false);
         
-        // Get indices of corner squares (excluding the origin corner)
-        _verificationSquareIndices = new []{_n - 1, _remainingCount - _n, _remainingCount - 1};
-
         // Only going one direction from the origin corner (downwards, right is disconnected)
         var cornerRouteCount = VisitNode(0);
         Console.WriteLine("Optimisation method aborted the following number of routes");
-        Console.WriteLine($"Middle square optimisation: {_skippedMiddleCount}");
-        Console.WriteLine($"Sample square optimisation: {_skippedSampleCount}");
+        Console.WriteLine($"Middle square remaining optimisation: {_middleRemainingOptimisationCount}");
+        Console.WriteLine($"Breaking move optimisation: {_breakingMoveOptimisationCount}");
         
         return cornerRouteCount * 8;
     }
@@ -54,10 +50,11 @@ public class IndexRouteFinder : IRouteFinder
         // Determine whether there are any more squares remaining to visit
         if (_remainingCount > 0)
         {
-            if (IsRoutePossible())
+            var nextSquares = GetNextSquares(thisIndex);
+            if (IsRoutePossible(nextSquares))
             {
                 // Investigate each node connected to this one that has not already been visited by this route
-                foreach (var nextNode in GetNextSquares(thisIndex))
+                foreach (var nextNode in nextSquares)
                 {
                     count += VisitNode(nextNode);
                 }
@@ -78,21 +75,27 @@ public class IndexRouteFinder : IRouteFinder
         return count;
     }
 
-    private bool IsRoutePossible()
+    private bool IsRoutePossible(List<int> nextSquares)
     {
         // Determine whether there are any more middle squares remaining to visit
         // If there are none remaining then the route is already impossible
         if (_middleCount == 0)
         {
-            _skippedMiddleCount++;
+            _middleRemainingOptimisationCount++;
             return false;
         }
-
-        // Verify that all the squares in the sample pool are still accessible
-        foreach (var verificationSquareIndex in _verificationSquareIndices)
+        
+        // If there is more than one option available, verify that other adjacent squares are not left inaccessible
+        if (nextSquares.Count > 1)
         {
-            if (!VerifySquare(verificationSquareIndex))
-                return false;
+            foreach (var verificationSquareIndex in nextSquares)
+            {
+                if (!VerifySquare(verificationSquareIndex))
+                {
+                    _breakingMoveOptimisationCount++;
+                    return false;
+                }
+            }
         }
 
         return true;
@@ -113,7 +116,7 @@ public class IndexRouteFinder : IRouteFinder
         var isPossible = nextInRoute.Count > 0;
 
         if (!isPossible)
-            _skippedSampleCount++;
+            _breakingMoveOptimisationCount++;
         
         // TODO Recursively run VerifySquare here to verify that the next square is accessible to (to d depth)
 
