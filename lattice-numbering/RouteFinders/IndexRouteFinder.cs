@@ -5,15 +5,17 @@ namespace LatticeNumbering.RouteFinders;
 public class IndexRouteFinder : IRouteFinder
 {
     private readonly int _n;
-    private readonly int _squareCount;
     
     private bool[] _squares = null!;
-    private int _visitedCount;
+    
+    private int _remainingCount;
+    private int _middleCount;
 
     public IndexRouteFinder(int n)
     {
         _n = n;
-        _squareCount = n * n;
+        _remainingCount = _n * _n;
+        _middleCount = 4 * n - 4;
     }
     
     public int Run()
@@ -27,17 +29,25 @@ public class IndexRouteFinder : IRouteFinder
     private int VisitNode(int thisIndex)
     {
         _squares[thisIndex] = true;
-        _visitedCount++;
+        _remainingCount--;
+
+        if (thisIndex.IsMiddleSquare(_n))
+            _middleCount--;
 
         var count = 0;
             
         // Determine whether there are any more squares remaining to visit
-        if (_visitedCount < _squareCount)
+        if (_remainingCount > 0)
         {
-            // Investigate each node connected to this one that has not already been visited by this route
-            foreach (var nextNode in GetNextSquares(thisIndex))
+            // Determine whether there are any more middle squares remaining to visit
+            // If there are none remaining then the route is already impossible
+            if (_middleCount > 0)
             {
-                count += VisitNode(nextNode);
+                // Investigate each node connected to this one that has not already been visited by this route
+                foreach (var nextNode in GetNextSquares(thisIndex))
+                {
+                    count += VisitNode(nextNode);
+                }
             }
         }
         else
@@ -49,7 +59,8 @@ public class IndexRouteFinder : IRouteFinder
 
         // Allow this node to be visited by other routes
         _squares[thisIndex] = false;
-        _visitedCount--;
+        _remainingCount++;
+        _middleCount++;
         
         return count;
     }
