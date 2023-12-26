@@ -7,6 +7,7 @@ public class IndexRouteFinder : IRouteFinder
     private readonly int _n;
     
     private bool[] _squares = null!;
+    private int[] _verificationSquareIndices = null!;
     
     private int _remainingCount;
     private int _middleCount;
@@ -14,13 +15,14 @@ public class IndexRouteFinder : IRouteFinder
     public IndexRouteFinder(int n)
     {
         _n = n;
-        _remainingCount = _n * _n;
-        _middleCount = 4 * n - 4;
     }
     
     public int Run()
     {
         _squares = new bool[_squareCount];
+        // Total number of squares, and of those middle squares, are available across the entire grid
+        _remainingCount = _n * _n;
+        _middleCount = (_n - 2) * (_n - 2);
         Array.Fill(_squares, false);
 
         return VisitNode(0) * 8;
