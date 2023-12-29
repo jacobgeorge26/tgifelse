@@ -8,13 +8,13 @@ public class IndexRouteFinder : IRouteFinder
     private readonly int _d;
     
     private bool[] _squares = null!;
-    private bool[] _middleSquares = null!;
+    private bool[] _validEndSquares = null!;
 
     private int _remainingCount;
-    private int _middleCount;
+    private int _validEndCount;
 
-    private int _middleRemainingOptimisationCount;
     private int _breakingMoveOptimisationCount;
+    private int _validEndRemainingOptimisationCount;
     
     public IndexRouteFinder(int n, int d)
     {
@@ -26,21 +26,30 @@ public class IndexRouteFinder : IRouteFinder
     {
         // Total number of squares, and of those the number of middle squares, that are available across the entire grid
         _remainingCount = _n * _n;
-        _middleCount = (_n - 2) * (_n - 2);
         
         _squares = new bool[_remainingCount];
-        _middleSquares = new bool[_remainingCount];
+        _validEndSquares = new bool[_remainingCount];
         
         for (var i = 0; i < _remainingCount; i++)
         {
             _squares[i] = false;
-            _middleSquares[i] = i.IsMiddleSquare(_n);
+            if (i.IsMiddleSquare(_n) && i.IsEndSquare(_n))
+            {
+                _validEndSquares[i] = true;
+                _validEndCount++;
+            }
+            else
+            {
+                _validEndSquares[i] = false;
+            }
         }
+
+        Console.WriteLine($"There are {_validEndCount} squares that it is possible for a valid route to end on");
         
         // Only going one direction from the origin corner (downwards, right is disconnected)
         var cornerRouteCount = MoveToSquare(0);
-        Console.WriteLine("Optimisation method aborted the following number of routes");
-        Console.WriteLine($"Middle square remaining optimisation: {_middleRemainingOptimisationCount}");
+        Console.WriteLine("Optimisation methods aborted the following number of routes");
+        Console.WriteLine($"Valid end remaining optimisation: {_validEndRemainingOptimisationCount}");
         Console.WriteLine($"Breaking move optimisation: {_breakingMoveOptimisationCount}");
         
         return cornerRouteCount * 8;
@@ -56,17 +65,26 @@ public class IndexRouteFinder : IRouteFinder
         // Determine whether there are any more squares remaining to visit
         if (_remainingCount > 0)
         {
-            // Investigate each node connected to this one that has not already been visited by this route
-            foreach (var nextNode in GetNextSquares(thisIndex))
+            if (_validEndCount == 0)
             {
-                if(_remainingCount < _d || VerifyRouteAhead(nextNode, _d))
+                // No more valid end squares remaining
+                _validEndRemainingOptimisationCount++;
+            }
+            else
+            {
+                // Investigate each node connected to this one that has not already been visited by this route
+                foreach (var nextNode in GetNextSquares(thisIndex))
+                {
+                    //if(_remainingCount < _d || VerifyRouteAhead(nextNode, _d))
                     count += MoveToSquare(nextNode);
+                }   
+                
             }
         }
         else
         {
             // If this node ends on a middle square then it is a valid route
-            if(_middleSquares[thisIndex])
+            if(_validEndSquares[thisIndex])
                 count++;
         }
 
@@ -82,22 +100,25 @@ public class IndexRouteFinder : IRouteFinder
         {
             _squares[index] = true;
             _remainingCount--;
-            if (_middleSquares[index])
+            
+            if (_validEndSquares[index])
             {
-                _middleCount--;
+                _validEndCount--;
             }
         }
         else
         {
             _squares[index] = false;
             _remainingCount++;
-            if (_middleSquares[index])
+
+            if (_validEndSquares[index])
             {
-                _middleCount++;
+                _validEndCount++;
             }
         }
     }
-
+    
+    // TODO rethink this using 'net cast' method versus iterating through connected nodes
     // Verify a square has at least one available route remaining
     private bool VerifyRouteAhead(int index, int remainingDepth)
     {
@@ -109,14 +130,6 @@ public class IndexRouteFinder : IRouteFinder
         // Determine whether there are any more squares remaining to visit
         if (_remainingCount > 0)
         {
-            // If there are no middle squares in the remaining squares then route is invalid
-            if (_middleCount == 0)
-            {
-                _middleRemainingOptimisationCount++;
-                SetSquareLock(index, false);
-                return false;
-            }
-
             // If this move is a dead end then the route is invalid
             var nextSquares = GetNextSquares(index);
             if (nextSquares.Count == 0)

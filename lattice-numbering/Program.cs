@@ -48,7 +48,7 @@ namespace LatticeNumbering
             
             if (method == Method.Node)
             {
-                Console.WriteLine($"Finding number of valid routes for an {n} by {n} grid, using the {method.ToString()} method");
+                Console.WriteLine($"Finding number of valid routes for a {n} by {n} grid, using the {method.ToString()} method");
                 return new NodeRouteFinder(n);
             }
 
@@ -59,7 +59,7 @@ namespace LatticeNumbering
             if (d < 0 || d > maxD)
                 throw new ArgumentException($"Invalid value {d} for d. Value must be in range 0 - {maxD}");
 
-            Console.WriteLine($"Finding number of valid routes for an {n} by {n} grid, using the {method.ToString()} method");
+            Console.WriteLine($"Finding number of valid routes for a {n} by {n} grid, using the {method.ToString()} method");
 
             return new IndexRouteFinder(n, d);
         }
