@@ -8,6 +8,10 @@ public static class IndexExtensions
 
     public static int GetXCoordinate(this int index, int n) => index % n;
     public static int GetYCoordinate(this int index, int n) => (int)Math.Floor((double)index / n);
+
+    public static bool IsCornerSquare(this int index, int n) => index == 0 || index == n - 1
+                                                                           || index == n * n - n ||
+                                                                           index == n * n - 1;
     
     public static bool IsMiddleSquare(this int index, int n) => !IsEdgeSquare(index, n);
 

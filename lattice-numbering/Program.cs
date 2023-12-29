@@ -61,7 +61,7 @@ namespace LatticeNumbering
 
             Console.WriteLine($"Finding number of valid routes for a {n} by {n} grid, using the {method.ToString()} method");
 
-            return new IndexRouteFinder(n, d);
+            return new IndexRouteFinder(n);
         }
         
     }

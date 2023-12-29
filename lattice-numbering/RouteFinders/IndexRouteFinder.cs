@@ -5,23 +5,24 @@ namespace LatticeNumbering.RouteFinders;
 public class IndexRouteFinder : IRouteFinder
 {
     private readonly int _n;
-    private readonly int _d;
     
     private bool[] _squares = null!;
     private bool[] _validEndSquares = null!;
 
-    private Dictionary<int, int[]> _connections = new();
+    private int[] _cornerSquares = null!;
+    private readonly Dictionary<int, int[]> _connections = new();
 
     private int _remainingCount;
     private int _validEndCount;
 
-    private int _breakingMoveOptimisationCount;
     private int _validEndRemainingOptimisationCount;
-    
-    public IndexRouteFinder(int n, int d)
+    private int _deadEndOptimisationCount;
+    private int _inaccessibleRouteOptimisationCount;
+    private int _inaccessibleCornerOptimisationCount;
+
+    public IndexRouteFinder(int n)
     {
         _n = n;
-        _d = d;
     }
     
     public int Run()
@@ -32,6 +33,9 @@ public class IndexRouteFinder : IRouteFinder
         _squares = new bool[_remainingCount];
         
         _validEndSquares = new bool[_remainingCount];
+
+        // Exclude origin corner
+        _cornerSquares = new[]{_n - 1, _remainingCount - _n, _remainingCount - 1};
         
         for (var i = 0; i < _remainingCount; i++)
         {
@@ -56,12 +60,19 @@ public class IndexRouteFinder : IRouteFinder
         
         // Only going one direction from the origin corner (downwards, right is disconnected)
         var cornerRouteCount = MoveToSquare(0);
-        Console.WriteLine("Optimisation methods aborted the following number of routes");
         Console.WriteLine($"Valid end remaining optimisation: {_validEndRemainingOptimisationCount}");
-        Console.WriteLine($"Breaking move optimisation: {_breakingMoveOptimisationCount}");
+        Console.WriteLine($"Dead end optimisation: {_deadEndOptimisationCount}");
+        Console.WriteLine("Optimisation methods aborted the following number of routes");
+        Console.WriteLine($"Inaccessible square optimisation: {_inaccessibleRouteOptimisationCount}");
+        Console.WriteLine($"Inaccessible corner optimisation: {_inaccessibleCornerOptimisationCount}");
         
         return cornerRouteCount * 8;
     }
+
+    // Once a third of the squares have been visited check at a low frequency
+    // Once two thirds of the squares have been visited check at a high frequency
+    private bool IsOptimisationThresholdMet() =>
+        _remainingCount < 2 * _n / 3 || (_remainingCount < 2 * _n / 3 && _remainingCount % 2 == 0);
     
     private int MoveToSquare(int thisIndex)
     {
@@ -77,18 +88,38 @@ public class IndexRouteFinder : IRouteFinder
             }
             else
             {
-                // Update grid metrics
-                SetSquareLock(thisIndex, true);
-
-                // Investigate each node connected to this one that has not already been visited by this route
-                foreach (var nextNode in GetNextSquares(thisIndex))
+                var nextSquares = GetNextSquares(thisIndex);
+                // Route has hit a dead end
+                if (nextSquares.Count == 0)
                 {
-                    //if(_remainingCount < _d || VerifyRouteAhead(nextNode, _d))
-                    count += MoveToSquare(nextNode);
-                }   
+                    _deadEndOptimisationCount++;
+                }
+                // Scan the grid for any squares that have been made inaccessible (no connections available)
+                // This scan is expensive so only run when a threshold has been met
+                else if (IsOptimisationThresholdMet() && !AreRemainingSquaresAccessible())
+                {
+                    _inaccessibleRouteOptimisationCount++;
+                }
+                // Visiting an edge square carries the risk of isolating a corner square - verify that this is not the case
+                else if (thisIndex.IsEdgeSquare(_n) && !thisIndex.IsCornerSquare(_n) && !AreCornersAccessible(thisIndex))
+                {
+                    _inaccessibleCornerOptimisationCount++;
+                }
+                else
+                {
+                    // Update grid metrics
+                    SetSquareLock(thisIndex, true);
+
+                    // Investigate each node connected to this one that has not already been visited by this route
+                    foreach (var nextNode in nextSquares)
+                    {
+                        //if(_remainingCount < _d || VerifyRouteAhead(nextNode, _d))
+                        count += MoveToSquare(nextNode);
+                    }   
                 
-                // Allow this node to be visited by other routes
-                SetSquareLock(thisIndex, false);
+                    // Allow this node to be visited by other routes
+                    SetSquareLock(thisIndex, false);
+                }
             }
         }
         else
@@ -101,6 +132,42 @@ public class IndexRouteFinder : IRouteFinder
         return count;
     }
 
+    private bool AreRemainingSquaresAccessible()
+    {
+        for (int i = 0; i < _squares.Length; i++)
+        {
+            // Find any squares that haven't been visited yet
+            if (!_squares[i])
+            {
+                // No connections to this square - the route has made a square inaccessible
+                if (GetNextSquares(i).Count == 0)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private bool AreCornersAccessible(int currentIndex)
+    {
+        // All corners must have two connections available
+        foreach (var corner in _cornerSquares)
+        {
+            if (_squares[corner]) continue;
+            
+            var cornerConnections = GetNextSquares(corner);
+            if (cornerConnections.Count == 0)
+                return false;
+
+            if (cornerConnections.Count == 1 && cornerConnections.First() != currentIndex)
+                return false;
+        }
+
+        return true;
+    }
+    
     private void SetSquareLock(int index, bool isLocked)
     {
         if (isLocked)
@@ -125,43 +192,6 @@ public class IndexRouteFinder : IRouteFinder
         }
     }
     
-    // TODO rethink this using 'net cast' method versus iterating through connected nodes
-    // Verify a square has at least one available route remaining
-    private bool VerifyRouteAhead(int index, int remainingDepth)
-    {
-        if (remainingDepth <= 0)
-            return true;
-        
-        SetSquareLock(index, true);
-
-        // Determine whether there are any more squares remaining to visit
-        if (_remainingCount > 0)
-        {
-            // If this move is a dead end then the route is invalid
-            var nextSquares = GetNextSquares(index);
-            if (nextSquares.Count == 0)
-            {
-                _breakingMoveOptimisationCount++;
-                SetSquareLock(index, false);
-                return false;
-            }
-
-            // Verify whether there are any possible future routes that make this route worth exploring
-            var isFutureRoutePossible = false;
-            foreach (var nextSquare in nextSquares)
-            {
-                if(!isFutureRoutePossible)
-                    isFutureRoutePossible = isFutureRoutePossible || VerifyRouteAhead(nextSquare, remainingDepth - 1);
-            }
-            SetSquareLock(index, false);
-            return isFutureRoutePossible;
-        }
-        
-        // Allow this node to be visited by other routes
-        SetSquareLock(index, false);
-        return true;
-    }
-
     private int[] GetConnections(int index)
     {
         var connections = new List<int>();
