@@ -59,11 +59,8 @@ public class IndexRouteFinder : IRouteFinder
     {
         var count = 0;
         
-        // Update grid metrics
-        SetSquareLock(thisIndex, true);
-
         // Determine whether there are any more squares remaining to visit
-        if (_remainingCount > 0)
+        if (_remainingCount > 1)
         {
             if (_validEndCount == 0)
             {
@@ -72,6 +69,9 @@ public class IndexRouteFinder : IRouteFinder
             }
             else
             {
+                // Update grid metrics
+                SetSquareLock(thisIndex, true);
+
                 // Investigate each node connected to this one that has not already been visited by this route
                 foreach (var nextNode in GetNextSquares(thisIndex))
                 {
@@ -79,6 +79,8 @@ public class IndexRouteFinder : IRouteFinder
                     count += MoveToSquare(nextNode);
                 }   
                 
+                // Allow this node to be visited by other routes
+                SetSquareLock(thisIndex, false);
             }
         }
         else
@@ -87,9 +89,6 @@ public class IndexRouteFinder : IRouteFinder
             if(_validEndSquares[thisIndex])
                 count++;
         }
-
-        // Allow this node to be visited by other routes
-        SetSquareLock(thisIndex, false);
         
         return count;
     }
