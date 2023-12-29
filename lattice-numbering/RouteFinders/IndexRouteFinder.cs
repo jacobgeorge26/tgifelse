@@ -10,6 +10,8 @@ public class IndexRouteFinder : IRouteFinder
     private bool[] _squares = null!;
     private bool[] _validEndSquares = null!;
 
+    private Dictionary<int, int[]> _connections = new();
+
     private int _remainingCount;
     private int _validEndCount;
 
@@ -28,11 +30,17 @@ public class IndexRouteFinder : IRouteFinder
         _remainingCount = _n * _n;
         
         _squares = new bool[_remainingCount];
+        
         _validEndSquares = new bool[_remainingCount];
         
         for (var i = 0; i < _remainingCount; i++)
         {
+            // Set squares as not visited by default
             _squares[i] = false;
+            
+            // Get all possible connections for the square
+            _connections[i] = GetConnections(i);
+            
             if (i.IsMiddleSquare(_n) && i.IsEndSquare(_n))
             {
                 _validEndSquares[i] = true;
@@ -153,28 +161,42 @@ public class IndexRouteFinder : IRouteFinder
         SetSquareLock(index, false);
         return true;
     }
+
+    private int[] GetConnections(int index)
+    {
+        var connections = new List<int>();
+        
+        // Is there is a square above this one
+        if(!index.IsTopEdge(_n))
+            connections.Add(index - _n);
+        
+        // Is there is a square below this one
+        if(!index.IsBottomEdge(_n))
+            connections.Add(index + _n);
+        
+        // Is there is a square to the left of this one
+        if(!index.IsLeftEdge(_n))
+            connections.Add(index - 1);
+        
+        // Is there is a square to the right of this one
+        // Exclude right link for index 0 (all routes taken via the square below index 0 will be mirrored)
+        if(!index.IsRightEdge(_n) && index != 0)
+            connections.Add(index + 1);
+
+        return connections.ToArray();
+    }
     
     private List<int> GetNextSquares(int index)
     {
         var availableSquares = new List<int>();
-        
-        // Is there is a square above this one that hasn't been visited yet
-        if(!index.IsTopEdge(_n) && !_squares[index - _n])
-            availableSquares.Add(index - _n);
-        
-        // Is there is a square below this one that hasn't been visited yet
-        if(!index.IsBottomEdge(_n) && !_squares[index + _n])
-            availableSquares.Add(index + _n);
-        
-        // Is there is a square to the left of this one that hasn't been visited yet
-        if(!index.IsLeftEdge(_n) && !_squares[index - 1])
-            availableSquares.Add(index - 1);
-        
-        // Is there is a square to the right of this one that hasn't been visited yet
-        // Exclude right link for index 0 (all routes taken via the square below index 0 will be mirrored)
-        if(!index.IsRightEdge(_n) && !_squares[index + 1] && index != 0)
-            availableSquares.Add(index + 1);
 
+        // Get all connected indexes that haven't been visited yet
+        foreach (var connectedIndex in _connections[index])
+        {
+            if(!_squares[connectedIndex])
+                availableSquares.Add(connectedIndex);
+        }
+        
         return availableSquares;
     }
 }
