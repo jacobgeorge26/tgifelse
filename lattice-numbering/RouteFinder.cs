@@ -1,10 +1,9 @@
-using LatticeNumbering.Extensions;
+namespace LatticeNumbering;
 
-namespace LatticeNumbering.RouteFinders;
-
-public class IndexRouteFinder : IRouteFinder
+public class RouteFinder
 {
     private readonly int _n;
+    private readonly bool _verbose;
     
     private bool[] _squares = null!;
     private bool[] _validEndSquares = null!;
@@ -24,9 +23,10 @@ public class IndexRouteFinder : IRouteFinder
     private int _deadEndCreatedOptimisationCount;
     private int _routeBlockedOptimisationCount;
 
-    public IndexRouteFinder(int n)
+    public RouteFinder(int n, bool verbose)
     {
         _n = n;
+        _verbose = verbose;
     }
     
     public int Run()
@@ -70,19 +70,23 @@ public class IndexRouteFinder : IRouteFinder
             _remainingColumnCounts[i] = _n;
         }
 
-        Console.WriteLine($"There are {_validEndCount} squares that it is possible for a valid route to end on");
+        if(_verbose)
+            Console.WriteLine($"There are {_validEndCount} squares that it is possible for a valid route to end on");
         
         // Only going one direction from the origin corner (downwards, right is disconnected)
         var cornerRouteCount = MoveToSquare(0);
-        Console.WriteLine();
-        Console.WriteLine("Optimisation methods aborted the following number of routes");
-        Console.WriteLine($"Valid end remaining: {_validEndRemainingOptimisationCount}");
-        Console.WriteLine($"Dead end hit: {_deadEndHitOptimisationCount}");
-        Console.WriteLine($"Inaccessible corner: {_inaccessibleCornerOptimisationCount}");
-        Console.WriteLine($"Dead end created: {_deadEndCreatedOptimisationCount}");
-        Console.WriteLine($"Route blocked: {_routeBlockedOptimisationCount}");
-        Console.WriteLine($"Inaccessible square: {_inaccessibleRouteOptimisationCount}");
-        Console.WriteLine();
+
+        if (_verbose)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Optimisation methods successfully aborted the following number of routes");
+            Console.WriteLine($"(1) Valid end remaining: {_validEndRemainingOptimisationCount}");
+            Console.WriteLine($"(2) Dead end hit: {_deadEndHitOptimisationCount}");
+            Console.WriteLine($"(3) Inaccessible corner: {_inaccessibleCornerOptimisationCount}");
+            Console.WriteLine($"(4) Dead end created: {_deadEndCreatedOptimisationCount}");
+            Console.WriteLine($"(5) Route blocked: {_routeBlockedOptimisationCount}");
+            Console.WriteLine($"(6) Inaccessible square: {_inaccessibleRouteOptimisationCount}");
+        }
 
         return cornerRouteCount * 8;
     }
@@ -96,67 +100,119 @@ public class IndexRouteFinder : IRouteFinder
     {
         var count = 0;
         
-        // Determine whether there are any more squares remaining to visit
         if (_remainingCount > 1)
         {
-            if (_validEndCount == 0)
-            {
-                // No more valid end squares remaining
-                _validEndRemainingOptimisationCount++;
-            }
-            else
-            {
-                var nextSquares = GetNextSquares(thisIndex);
-                var isEdge = thisIndex.IsEdgeSquare(_n);
-                // Route has hit a dead end
-                if (nextSquares.Count == 0)
-                {
-                    _deadEndHitOptimisationCount++;
-                }
-                // Visiting an edge square carries the risk of isolating a corner square - verify that this is not the case
-                else if (isEdge && !thisIndex.IsCornerSquare(_n) && !AreCornersAccessible(thisIndex))
-                {
-                    _inaccessibleCornerOptimisationCount++;
-                }
-                // Has a row or column been completed, blocking squares on one side from the other
-                else if (!isEdge && (CreatesRowBlock(thisIndex) || CreatesColumnBlock(thisIndex)))
-                {
-                    _routeBlockedOptimisationCount++;
-                }
-                else if (!CanConnectionsMeet(thisIndex, nextSquares))
-                {
-                    _deadEndCreatedOptimisationCount++;
-                }
-                // Scan the grid for any squares that have been made inaccessible (no connections available)
-                // This scan is expensive so only run when a threshold has been met
-                else if (IsOptimisationThresholdMet() && !AreRemainingSquaresAccessible())
-                {
-                    _inaccessibleRouteOptimisationCount++;
-                }
-                else
-                {
-                    // Update grid metrics
-                    SetSquareLock(thisIndex, true);
+            // There are more squares remaining to visit - continue with route
+            var nextSquares = GetNextSquares(thisIndex);
 
-                    // Investigate each node connected to this one that has not already been visited by this route
-                    foreach (var nextNode in nextSquares)
-                    {
-                        count += MoveToSquare(nextNode);
-                    }   
-                
-                    // Allow this node to be visited by other routes
-                    SetSquareLock(thisIndex, false);
-                }
+            var isRouteValid = _verbose 
+                ? IsRouteValidVerbose(thisIndex, nextSquares) 
+                : IsRouteValid(thisIndex, nextSquares);
+            
+            if (isRouteValid)
+            {
+                // Update grid metrics
+                SetSquareLock(thisIndex, true);
+
+                // Investigate each node connected to this one that has not already been visited by this route
+                foreach (var nextNode in nextSquares)
+                {
+                    count += MoveToSquare(nextNode);
+                }   
+            
+                // Allow this node to be visited by other routes
+                SetSquareLock(thisIndex, false);
             }
         }
         else
         {
+            // Route has reached final square
             // If this node ends on a middle square then it is a valid route
             if(_validEndSquares[thisIndex])
                 count++;
         }
         
         return count;
+    }
+
+    private bool IsRouteValidVerbose(int index, IReadOnlyCollection<int> nextSquares)
+    {
+        // Are there any more valid end squares remaining for the route to end on
+        if (_validEndCount == 0)
+        {
+            _validEndRemainingOptimisationCount++;
+            return false;
+        }
+        
+        // Route has hit a dead end
+        if (nextSquares.Count == 0)
+        {
+            _deadEndHitOptimisationCount++;
+            return false;
+        }
+        
+        // Visiting an edge square carries the risk of isolating a corner square - verify that this is not the case
+        if (index.IsEdgeSquare(_n) && !index.IsCornerSquare(_n) && !AreCornersAccessible(index))
+        {
+            _inaccessibleCornerOptimisationCount++;
+            return false;
+        }
+        
+        // Has a row or column been completed, blocking squares on one side from the other
+        if (index.IsMiddleSquare(_n) && (CreatesRowBlock(index) || CreatesColumnBlock(index)))
+        {
+            _routeBlockedOptimisationCount++;
+            return false;
+        }
+        
+        // If the route has reached a fork can the two squares be connected?
+        // If not then the route is isolating a section of the grid and whichever route is taken will reach a dead end
+        if (!CanConnectionsMeet(index, nextSquares))
+        {
+            _deadEndCreatedOptimisationCount++;
+            return false;
+        }
+        
+        // Scan the grid for any squares that have been made inaccessible (no connections available)
+        // This scan is expensive so only run when a threshold has been met
+        if (IsOptimisationThresholdMet() && !AreRemainingSquaresAccessible())
+        {
+            _inaccessibleRouteOptimisationCount++;
+            return false;
+        }
+
+        return true;
+    }
+    
+    private bool IsRouteValid(int index, IReadOnlyCollection<int> nextSquares)
+    {
+        // Are there any more valid end squares remaining for the route to end on
+        if (_validEndCount == 0)
+            return false;
+
+        // Route has hit a dead end
+        if (nextSquares.Count == 0)
+            return false;
+
+        // Visiting an edge square carries the risk of isolating a corner square - verify that this is not the case
+        if (index.IsEdgeSquare(_n) && !index.IsCornerSquare(_n) && !AreCornersAccessible(index))
+            return false;
+
+        // Has a row or column been completed, blocking squares on one side from the other
+        if (index.IsMiddleSquare(_n) && (CreatesRowBlock(index) || CreatesColumnBlock(index)))
+            return false;
+
+        // If the route has reached a fork can the two squares be connected?
+        // If not then the route is isolating a section of the grid and whichever route is taken will reach a dead end
+        if (!CanConnectionsMeet(index, nextSquares))
+            return false;
+
+        // Scan the grid for any squares that have been made inaccessible (no connections available)
+        // This scan is expensive so only run when a threshold has been met
+        if (IsOptimisationThresholdMet() && !AreRemainingSquaresAccessible())
+            return false;
+
+        return true;
     }
 
     private bool AreRemainingSquaresAccessible()

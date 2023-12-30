@@ -1,4 +1,4 @@
-namespace LatticeNumbering.Extensions;
+namespace LatticeNumbering;
 
 public static class IndexExtensions
 {
