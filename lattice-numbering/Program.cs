@@ -23,6 +23,8 @@ namespace LatticeNumbering
             Console.WriteLine($"{routeCount} routes possible");
 
             Console.WriteLine($"Completed in {Math.Round(stopwatch.Elapsed.TotalSeconds, 2)} seconds");
+
+            Console.WriteLine();
         }
         
         private static IRouteFinder GetRouteFinder(string[] args)

@@ -18,9 +18,10 @@ public class IndexRouteFinder : IRouteFinder
     private int[] _remainingColumnCounts = null!;
 
     private int _validEndRemainingOptimisationCount;
-    private int _deadEndOptimisationCount;
+    private int _deadEndHitOptimisationCount;
     private int _inaccessibleRouteOptimisationCount;
     private int _inaccessibleCornerOptimisationCount;
+    private int _deadEndCreatedOptimisationCount;
     private int _routeBlockedOptimisationCount;
 
     public IndexRouteFinder(int n)
@@ -73,12 +74,15 @@ public class IndexRouteFinder : IRouteFinder
         
         // Only going one direction from the origin corner (downwards, right is disconnected)
         var cornerRouteCount = MoveToSquare(0);
+        Console.WriteLine();
         Console.WriteLine("Optimisation methods aborted the following number of routes");
-        Console.WriteLine($"Valid end remaining optimisation: {_validEndRemainingOptimisationCount}");
-        Console.WriteLine($"Dead end optimisation: {_deadEndOptimisationCount}");
-        Console.WriteLine($"Inaccessible corner optimisation: {_inaccessibleCornerOptimisationCount}");
-        Console.WriteLine($"Route blocked optimisation: {_routeBlockedOptimisationCount}");
-        Console.WriteLine($"Inaccessible square optimisation: {_inaccessibleRouteOptimisationCount}");
+        Console.WriteLine($"Valid end remaining: {_validEndRemainingOptimisationCount}");
+        Console.WriteLine($"Dead end hit: {_deadEndHitOptimisationCount}");
+        Console.WriteLine($"Inaccessible corner: {_inaccessibleCornerOptimisationCount}");
+        Console.WriteLine($"Dead end created: {_deadEndCreatedOptimisationCount}");
+        Console.WriteLine($"Route blocked: {_routeBlockedOptimisationCount}");
+        Console.WriteLine($"Inaccessible square: {_inaccessibleRouteOptimisationCount}");
+        Console.WriteLine();
 
         return cornerRouteCount * 8;
     }
@@ -107,16 +111,21 @@ public class IndexRouteFinder : IRouteFinder
                 // Route has hit a dead end
                 if (nextSquares.Count == 0)
                 {
-                    _deadEndOptimisationCount++;
+                    _deadEndHitOptimisationCount++;
                 }
                 // Visiting an edge square carries the risk of isolating a corner square - verify that this is not the case
                 else if (isEdge && !thisIndex.IsCornerSquare(_n) && !AreCornersAccessible(thisIndex))
                 {
                     _inaccessibleCornerOptimisationCount++;
                 }
+                // Has a row or column been completed, blocking squares on one side from the other
                 else if (!isEdge && (CreatesRowBlock(thisIndex) || CreatesColumnBlock(thisIndex)))
                 {
                     _routeBlockedOptimisationCount++;
+                }
+                else if (!CanConnectionsMeet(thisIndex, nextSquares))
+                {
+                    _deadEndCreatedOptimisationCount++;
                 }
                 // Scan the grid for any squares that have been made inaccessible (no connections available)
                 // This scan is expensive so only run when a threshold has been met
@@ -242,34 +251,94 @@ public class IndexRouteFinder : IRouteFinder
 
         return true;
     }
+
+    private bool CanConnectionsMeet(int thisIndex, IReadOnlyCollection<int> nextSquares)
+    {
+        if (nextSquares.Count != 2)
+            return true;
+        
+        SetTempSquareLock(thisIndex, true);
+
+        var isFound = FindIndexInConnections(new List<int> { nextSquares.First() }, nextSquares.Last(), 3);
+
+        SetTempSquareLock(thisIndex, false);
+
+        return isFound;
+    }
+    
+    private bool FindIndexInConnections(List<int> currentLayerIndexes, int targetIndex, int depth)
+    {
+        if (depth == 0)
+            return false;
+
+        var found = false;
+        var nextLayerIndexes = new List<int>();
+        
+        foreach (var currentIndex in currentLayerIndexes)
+        {
+            found = found || currentIndex == targetIndex;
+            
+            // Check SetTempSquareLock hasn't already been called for this index
+            // This prevents duplicated calls to nextLayerIndexes (without having to call Distinct)
+            if (!_squares[currentIndex] && !found)
+            {
+                foreach (var nextIndex in GetNextSquares(currentIndex))
+                {
+                    nextLayerIndexes.Add(nextIndex);
+                }
+            }
+            
+            SetTempSquareLock(currentIndex, true);
+        }
+
+        found = found || FindIndexInConnections(nextLayerIndexes, targetIndex, depth - 1);
+
+        foreach (var index in currentLayerIndexes)
+        {
+            SetTempSquareLock(index, false);
+        }
+
+        return found;
+    }
+
+    private void SetTempSquareLock(int index, bool isLocked)
+    {
+        _squares[index] = isLocked;
+    }
     
     private void SetSquareLock(int index, bool isLocked)
     {
         if (isLocked)
         {
-            _squares[index] = true;
-            _remainingCount--;
-            
-            if (_validEndSquares[index])
+            if (!_squares[index])
             {
-                _validEndCount--;
-            }
+                _squares[index] = true;
+                _remainingCount--;
+            
+                if (_validEndSquares[index])
+                {
+                    _validEndCount--;
+                }
 
-            _remainingRowCounts[index.GetYCoordinate(_n)]--;
-            _remainingColumnCounts[index.GetXCoordinate(_n)]--;
+                _remainingRowCounts[index.GetYCoordinate(_n)]--;
+                _remainingColumnCounts[index.GetXCoordinate(_n)]--;
+            }
         }
         else
         {
-            _squares[index] = false;
-            _remainingCount++;
-
-            if (_validEndSquares[index])
+            if (_squares[index])
             {
-                _validEndCount++;
-            }
+                _squares[index] = false;
+                _remainingCount++;
+
+                if (_validEndSquares[index])
+                {
+                    _validEndCount++;
+                }
             
-            _remainingRowCounts[index.GetYCoordinate(_n)]++;
-            _remainingColumnCounts[index.GetXCoordinate(_n)]++;
+                _remainingRowCounts[index.GetYCoordinate(_n)]++;
+                _remainingColumnCounts[index.GetXCoordinate(_n)]++;
+            }
         }
     }
     
