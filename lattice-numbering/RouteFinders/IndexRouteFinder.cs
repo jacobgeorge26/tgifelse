@@ -14,11 +14,14 @@ public class IndexRouteFinder : IRouteFinder
 
     private int _remainingCount;
     private int _validEndCount;
+    private int[] _remainingRowCounts = null!;
+    private int[] _remainingColumnCounts = null!;
 
     private int _validEndRemainingOptimisationCount;
     private int _deadEndOptimisationCount;
     private int _inaccessibleRouteOptimisationCount;
     private int _inaccessibleCornerOptimisationCount;
+    private int _routeBlockedOptimisationCount;
 
     public IndexRouteFinder(int n)
     {
@@ -30,13 +33,13 @@ public class IndexRouteFinder : IRouteFinder
         // Total number of squares, and of those the number of middle squares, that are available across the entire grid
         _remainingCount = _n * _n;
         
+        // Create empty arrays for grid data
         _squares = new bool[_remainingCount];
-        
         _validEndSquares = new bool[_remainingCount];
-
         // Exclude origin corner
         _cornerSquares = new[]{_n - 1, _remainingCount - _n, _remainingCount - 1};
         
+        // Populate grid data
         for (var i = 0; i < _remainingCount; i++)
         {
             // Set squares as not visited by default
@@ -56,16 +59,27 @@ public class IndexRouteFinder : IRouteFinder
             }
         }
 
+        // Create empty arrays for row / column tracking data
+        _remainingRowCounts = new int[_n];
+        _remainingColumnCounts = new int[_n];
+        // Populate row / column tracking data
+        for (var i = 0; i < _n; i++)
+        {
+            _remainingRowCounts[i] = _n;
+            _remainingColumnCounts[i] = _n;
+        }
+
         Console.WriteLine($"There are {_validEndCount} squares that it is possible for a valid route to end on");
         
         // Only going one direction from the origin corner (downwards, right is disconnected)
         var cornerRouteCount = MoveToSquare(0);
+        Console.WriteLine("Optimisation methods aborted the following number of routes");
         Console.WriteLine($"Valid end remaining optimisation: {_validEndRemainingOptimisationCount}");
         Console.WriteLine($"Dead end optimisation: {_deadEndOptimisationCount}");
-        Console.WriteLine("Optimisation methods aborted the following number of routes");
-        Console.WriteLine($"Inaccessible square optimisation: {_inaccessibleRouteOptimisationCount}");
         Console.WriteLine($"Inaccessible corner optimisation: {_inaccessibleCornerOptimisationCount}");
-        
+        Console.WriteLine($"Route blocked optimisation: {_routeBlockedOptimisationCount}");
+        Console.WriteLine($"Inaccessible square optimisation: {_inaccessibleRouteOptimisationCount}");
+
         return cornerRouteCount * 8;
     }
 
@@ -89,21 +103,26 @@ public class IndexRouteFinder : IRouteFinder
             else
             {
                 var nextSquares = GetNextSquares(thisIndex);
+                var isEdge = thisIndex.IsEdgeSquare(_n);
                 // Route has hit a dead end
                 if (nextSquares.Count == 0)
                 {
                     _deadEndOptimisationCount++;
+                }
+                // Visiting an edge square carries the risk of isolating a corner square - verify that this is not the case
+                else if (isEdge && !thisIndex.IsCornerSquare(_n) && !AreCornersAccessible(thisIndex))
+                {
+                    _inaccessibleCornerOptimisationCount++;
+                }
+                else if (!isEdge && (CreatesRowBlock(thisIndex) || CreatesColumnBlock(thisIndex)))
+                {
+                    _routeBlockedOptimisationCount++;
                 }
                 // Scan the grid for any squares that have been made inaccessible (no connections available)
                 // This scan is expensive so only run when a threshold has been met
                 else if (IsOptimisationThresholdMet() && !AreRemainingSquaresAccessible())
                 {
                     _inaccessibleRouteOptimisationCount++;
-                }
-                // Visiting an edge square carries the risk of isolating a corner square - verify that this is not the case
-                else if (thisIndex.IsEdgeSquare(_n) && !thisIndex.IsCornerSquare(_n) && !AreCornersAccessible(thisIndex))
-                {
-                    _inaccessibleCornerOptimisationCount++;
                 }
                 else
                 {
@@ -113,7 +132,6 @@ public class IndexRouteFinder : IRouteFinder
                     // Investigate each node connected to this one that has not already been visited by this route
                     foreach (var nextNode in nextSquares)
                     {
-                        //if(_remainingCount < _d || VerifyRouteAhead(nextNode, _d))
                         count += MoveToSquare(nextNode);
                     }   
                 
@@ -134,7 +152,7 @@ public class IndexRouteFinder : IRouteFinder
 
     private bool AreRemainingSquaresAccessible()
     {
-        for (int i = 0; i < _squares.Length; i++)
+        for (var i = 0; i < _squares.Length; i++)
         {
             // Find any squares that haven't been visited yet
             if (!_squares[i])
@@ -150,6 +168,63 @@ public class IndexRouteFinder : IRouteFinder
         return true;
     }
 
+    private bool CreatesRowBlock(int thisIndex)
+    {
+        var currentRow = thisIndex.GetYCoordinate(_n);
+        // This square has not been locked yet so a count of 1 completes the row
+        if (_remainingRowCounts[currentRow] <= 1)
+        {
+            // This square being visited completes the row
+            for (var i = 0; i < currentRow; i++)
+            {
+                if (_remainingRowCounts[i] == 0) continue;
+
+                // Unvisited squares have been identified above this one, no need to continue searching
+                i = currentRow;
+
+                for (var j = currentRow + 1; j < _n; j++)
+                {
+                    if (_remainingRowCounts[j] > 0)
+                    {
+                        // Unvisited squares have also been identified below this one
+                        // This square creates a block and the route is impossible
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+    private bool CreatesColumnBlock(int thisIndex)
+    {
+        var currentColumn = thisIndex.GetXCoordinate(_n);
+        // This square has not been locked yet so a count of 1 completes the column
+        if (_remainingColumnCounts[currentColumn] <= 1)
+        {
+            // This square being visited completes the column
+            for (var i = 0; i < currentColumn; i++)
+            {
+                if (_remainingColumnCounts[i] == 0) continue;
+                
+                // Unvisited squares have been identified to the left of this one, no need to continue searching
+                i = currentColumn;
+
+                for (var j = currentColumn + 1; j < _n ; j++)
+                {
+                    if (_remainingColumnCounts[j] > 0)
+                    {
+                        // Unvisited squares have also been identified to the right of this one
+                        // This square creates a block and the route is impossible
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+    
     private bool AreCornersAccessible(int currentIndex)
     {
         // All corners must have two connections available
@@ -179,6 +254,9 @@ public class IndexRouteFinder : IRouteFinder
             {
                 _validEndCount--;
             }
+
+            _remainingRowCounts[index.GetYCoordinate(_n)]--;
+            _remainingColumnCounts[index.GetXCoordinate(_n)]--;
         }
         else
         {
@@ -189,6 +267,9 @@ public class IndexRouteFinder : IRouteFinder
             {
                 _validEndCount++;
             }
+            
+            _remainingRowCounts[index.GetYCoordinate(_n)]++;
+            _remainingColumnCounts[index.GetXCoordinate(_n)]++;
         }
     }
     
